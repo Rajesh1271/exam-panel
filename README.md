@@ -30,13 +30,6 @@ A full-stack, dynamic online examination and administration portal built with **
 
 ---
 
-## 🔑 Default Login Credentials
-
-| Role | Email | Password |
-|---|---|---|
-| **Admin** | `admin@exam.com` | `admin123` |
-| **Teacher** | `teacher@exam.com` | `teacher123` |
-| **Student** | `student@exam.com` | `student123` |
 
 *(You can also register new accounts anytime via the Signup page!)*
 
