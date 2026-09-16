@@ -13,6 +13,10 @@ import {
   AlertCircle,
   Calendar,
   CheckCircle,
+  Edit3,
+  Sliders,
+  Save,
+  Check,
   X
 } from "lucide-react";
 import TeacherSidebar from "../components/TeacherSidebar";
@@ -22,6 +26,8 @@ export default function TeacherExams() {
   const [isOpen, setIsOpen] = useState(true);
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Question modal states
   const [selectedExam, setSelectedExam] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [examDetails, setExamDetails] = useState(null);
@@ -29,6 +35,22 @@ export default function TeacherExams() {
   const [allQuestions, setAllQuestions] = useState([]);
   const [selectedQuestionToAdd, setSelectedQuestionToAdd] = useState("");
   const [addingQuestion, setAddingQuestion] = useState(false);
+
+  // Edit Duration & Settings modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingExam, setEditingExam] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    examcode: "",
+    durationMinutes: 30,
+    passMarks: 40,
+    date: "",
+    starttime: "10:00 AM"
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const durationPresets = [10, 15, 20, 30, 45, 60, 90, 120, 180];
 
   const fetchExams = async () => {
     try {
@@ -84,6 +106,60 @@ export default function TeacherExams() {
     } catch (err) {
       console.error("Failed to delete exam:", err);
       alert("Error deleting exam. Please try again.");
+    }
+  };
+
+  const handleOpenEditModal = (exam) => {
+    setEditingExam(exam);
+    setEditForm({
+      title: exam.title || exam.examname || "",
+      examcode: exam.examcode || "",
+      durationMinutes: Number(exam.durationMinutes || exam.duration || 30),
+      passMarks: Number(exam.passMarks || 40),
+      date: exam.date || new Date().toISOString().split('T')[0],
+      starttime: exam.starttime || "10:00 AM"
+    });
+    setSuccessMessage("");
+    setEditModalOpen(true);
+  };
+
+  const handleSaveExamSettings = async (e) => {
+    e.preventDefault();
+    if (!editingExam) return;
+
+    try {
+      setSavingSettings(true);
+      const payload = {
+        title: editForm.title.trim(),
+        examname: editForm.title.trim(),
+        examcode: editForm.examcode.trim(),
+        durationMinutes: Math.max(1, Number(editForm.durationMinutes) || 30),
+        duration: Math.max(1, Number(editForm.durationMinutes) || 30),
+        passMarks: Number(editForm.passMarks) || 40,
+        date: editForm.date,
+        starttime: editForm.starttime
+      };
+
+      const res = await axios.put(`http://localhost:3300/api/exams/${editingExam._id}`, payload);
+      
+      setSuccessMessage(`🎉 Exam duration updated to ${payload.durationMinutes} minutes successfully!`);
+      fetchExams();
+
+      if (selectedExam && selectedExam._id === editingExam._id) {
+        setSelectedExam(res.data);
+      }
+
+      setTimeout(() => {
+        setEditModalOpen(false);
+        setEditingExam(null);
+        setSuccessMessage("");
+      }, 1200);
+
+    } catch (err) {
+      console.error("Failed to update exam duration:", err);
+      alert("Failed to update exam: " + (err.response?.data?.error || err.message));
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -178,7 +254,7 @@ export default function TeacherExams() {
               </h1>
             </div>
             <p className="text-sm text-slate-600 mt-1">
-              Create, inspect, and manage active tests for all registered students.
+              Create, adjust duration limits, inspect, and manage active tests for all registered students.
             </p>
           </div>
 
@@ -286,6 +362,7 @@ export default function TeacherExams() {
                 <tbody className="divide-y divide-slate-100">
                   {exams.map((ex) => {
                     const qCount = ex.questionCount || ex.questionIds?.length || 0;
+                    const durationVal = ex.durationMinutes || ex.duration || 30;
 
                     return (
                       <tr key={ex._id} className="hover:bg-slate-50/80 transition">
@@ -304,11 +381,16 @@ export default function TeacherExams() {
                           </span>
                         </td>
 
-                        <td className="p-4 text-slate-600">
-                          <span className="flex items-center gap-1.5">
-                            <Clock size={14} className="text-blue-600" />
-                            {ex.durationMinutes || ex.duration || 30} Mins
-                          </span>
+                        <td className="p-4 text-slate-700 font-bold">
+                          <button
+                            onClick={() => handleOpenEditModal(ex)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-xs font-bold border border-amber-200 transition"
+                            title="Click to edit duration"
+                          >
+                            <Clock size={14} className="text-amber-600" />
+                            <span>{durationVal} Mins</span>
+                            <Edit3 size={11} className="text-amber-500 ml-0.5" />
+                          </button>
                         </td>
 
                         <td className="p-4 text-slate-700 font-semibold">
@@ -324,6 +406,15 @@ export default function TeacherExams() {
 
                         <td className="p-4 pr-6 text-center">
                           <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleOpenEditModal(ex)}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg transition text-xs font-bold border border-amber-200"
+                              title="Edit Exam Duration & Settings"
+                            >
+                              <Sliders size={14} />
+                              <span>Edit Duration</span>
+                            </button>
+
                             <button
                               onClick={() => handleViewDetails(ex)}
                               className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition text-xs font-semibold"
@@ -360,6 +451,155 @@ export default function TeacherExams() {
         </div>
       </div>
 
+      {/* Edit Exam Duration & Settings Modal */}
+      {editModalOpen && editingExam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 bg-amber-100 text-amber-700 rounded-xl">
+                  <Clock size={20} />
+                </span>
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">
+                    Change Exam Duration & Settings
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Adjust time limits and exam parameters in MongoDB
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setEditModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-200 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveExamSettings} className="p-6 space-y-5">
+              {successMessage && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                  <CheckCircle size={16} className="text-emerald-600 flex-shrink-0" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
+
+              {/* Exam Title */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Exam Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                  className="w-full p-3 border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Exam Duration Limit in Minutes */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock size={14} className="text-amber-600" />
+                    Exam Duration (Minutes) <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                    {editForm.durationMinutes} Minutes ({Math.floor(editForm.durationMinutes / 60)}h {editForm.durationMinutes % 60}m)
+                  </span>
+                </div>
+
+                <input
+                  type="number"
+                  min="1"
+                  max="480"
+                  value={editForm.durationMinutes}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, durationMinutes: Math.max(1, parseInt(e.target.value) || 1) }))}
+                  className="w-full p-3 border border-slate-300 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  required
+                />
+
+                {/* Quick Duration Preset Pills */}
+                <div className="pt-2">
+                  <p className="text-[11px] font-semibold text-slate-400 mb-1.5">Quick Presets:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {durationPresets.map((mins) => {
+                      const isSelected = Number(editForm.durationMinutes) === mins;
+                      return (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => setEditForm(prev => ({ ...prev, durationMinutes: mins }))}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition active:scale-95 ${
+                            isSelected
+                              ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-400"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                          }`}
+                        >
+                          {mins < 60 ? `${mins}m` : mins === 60 ? '1h' : `${mins / 60}h`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Code & Pass Marks */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Exam Code
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.examcode}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, examcode: e.target.value }))}
+                    className="w-full p-2.5 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Pass Criteria (%)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={editForm.passMarks}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, passMarks: Math.min(100, Math.max(1, parseInt(e.target.value) || 40)) }))}
+                    className="w-full p-2.5 border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Action Buttons */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={savingSettings}
+                  className="px-6 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold rounded-xl text-xs shadow-md shadow-amber-500/20 transition active:scale-95 flex items-center gap-2"
+                >
+                  <Save size={15} />
+                  <span>{savingSettings ? "Saving Duration..." : "Save Changes"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Exam Details & Questions Management Modal */}
       {selectedExam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -370,9 +610,19 @@ export default function TeacherExams() {
                   <FileText size={22} className="text-blue-600" />
                   {selectedExam.title || selectedExam.examname}
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Course: <span className="font-bold text-blue-600">{selectedExam.course?.name || "General"}</span> • {selectedExam.durationMinutes || 30} Mins • {examDetails?.questionIds?.length || 0} Questions
-                </p>
+                <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                  <span>Course: <strong className="text-blue-600">{selectedExam.course?.name || "General"}</strong></span>
+                  <span>•</span>
+                  <button
+                    onClick={() => handleOpenEditModal(selectedExam)}
+                    className="inline-flex items-center gap-1 font-bold text-amber-700 hover:underline bg-amber-50 px-2 py-0.5 rounded border border-amber-200"
+                  >
+                    <Clock size={12} />
+                    <span>Duration: {selectedExam.durationMinutes || 30} Mins (Click to change)</span>
+                  </button>
+                  <span>•</span>
+                  <span>{examDetails?.questionIds?.length || 0} Questions</span>
+                </div>
               </div>
 
               <button
@@ -491,7 +741,15 @@ export default function TeacherExams() {
               )}
             </div>
 
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+              <button
+                onClick={() => handleOpenEditModal(selectedExam)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-bold border border-amber-200 transition"
+              >
+                <Clock size={14} className="text-amber-600" />
+                <span>Edit Duration ({selectedExam.durationMinutes || 30}m)</span>
+              </button>
+
               <button
                 onClick={() => {
                   setSelectedExam(null);
@@ -508,3 +766,4 @@ export default function TeacherExams() {
     </div>
   );
 }
+

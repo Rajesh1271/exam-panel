@@ -159,7 +159,7 @@ export default function JoinExamPage() {
                 <div className="grid grid-cols-2 gap-2.5 text-xs text-slate-300 pt-2 border-t border-white/5">
                   <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded-xl">
                     <Clock size={15} className="text-cyan-400" />
-                    <span>{verifiedExam.durationMinutes || 30} Minutes</span>
+                    <span>{verifiedExam.durationMinutes || verifiedExam.duration || 30} Minutes</span>
                   </div>
                   <div className="flex items-center gap-2 bg-slate-900/60 p-2 rounded-xl">
                     <HelpCircle size={15} className="text-purple-400" />

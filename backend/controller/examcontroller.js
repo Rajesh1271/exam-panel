@@ -365,13 +365,20 @@ exports.updateExam = async (req, res) => {
       title,
       examname,
       examcode,
+      examCode,
       courseId,
+      course,
       questionIds,
       durationMinutes,
+      duration,
+      timeLimit,
       totalMarks,
       passMarks,
       date,
-      starttime
+      starttime,
+      securityLevel,
+      enableRankings,
+      isPractice
     } = req.body;
 
     const updateData = {};
@@ -379,16 +386,35 @@ exports.updateExam = async (req, res) => {
       updateData.title = title || examname;
       updateData.examname = title || examname;
     }
-    if (examcode) updateData.examcode = examcode;
-    if (courseId) updateData.courseId = courseId;
+    if (examcode || examCode) {
+      updateData.examcode = examcode || examCode;
+      updateData.examCode = examcode || examCode;
+    }
+    if (courseId || course) {
+      updateData.courseId = courseId || course;
+    }
     if (Array.isArray(questionIds)) {
       updateData.questionIds = questionIds;
       updateData.totalMarks = totalMarks ? Number(totalMarks) : questionIds.length;
     }
-    if (durationMinutes) updateData.durationMinutes = Number(durationMinutes);
-    if (passMarks) updateData.passMarks = Number(passMarks);
+
+    // Flexible duration parsing
+    const rawDuration = durationMinutes !== undefined ? durationMinutes : (duration !== undefined ? duration : timeLimit);
+    if (rawDuration !== undefined && rawDuration !== null && !isNaN(Number(rawDuration))) {
+      updateData.durationMinutes = Math.max(1, Number(rawDuration));
+    }
+
+    if (passMarks !== undefined && passMarks !== null && !isNaN(Number(passMarks))) {
+      updateData.passMarks = Number(passMarks);
+    }
+    if (totalMarks !== undefined && totalMarks !== null && !isNaN(Number(totalMarks))) {
+      updateData.totalMarks = Number(totalMarks);
+    }
     if (date) updateData.date = date;
     if (starttime) updateData.starttime = starttime;
+    if (securityLevel) updateData.securityLevel = securityLevel;
+    if (enableRankings !== undefined) updateData.enableRankings = enableRankings;
+    if (isPractice !== undefined) updateData.isPractice = isPractice;
 
     const updated = await Exam.findByIdAndUpdate(
       req.params.id,
@@ -400,14 +426,29 @@ exports.updateExam = async (req, res) => {
 
     await logActivity({
       action: 'Exam Updated',
-      details: `Updated exam: "${updated.title}" (${updated.questionIds?.length || 0} questions)`,
+      details: `Updated exam "${updated.title}" - Duration: ${updated.durationMinutes} Mins, Questions: ${updated.questionIds?.length || 0}`,
       type: 'exam',
       user: 'Teacher/Admin',
       role: 'teacher'
     });
 
     const { emitRealtimeEvent } = require('../utils/socketEmitter');
-    emitRealtimeEvent('examUpdated', updated);
+    emitRealtimeEvent('examUpdated', {
+      _id: updated._id,
+      id: updated._id,
+      title: updated.title,
+      examname: updated.examname,
+      durationMinutes: updated.durationMinutes,
+      duration: updated.durationMinutes,
+      totalMarks: updated.totalMarks,
+      passMarks: updated.passMarks,
+      questionIds: updated.questionIds,
+      questionCount: updated.questionIds?.length || 0,
+      courseId: updated.courseId,
+      course: updated.courseId,
+      date: updated.date,
+      starttime: updated.starttime
+    });
 
     return res.status(200).json(updated);
   } catch (err) {

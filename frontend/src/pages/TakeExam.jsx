@@ -123,7 +123,7 @@ const TakeExam = () => {
                     <div className="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-2 border-t border-white/5">
                       <div className="flex items-center gap-2 bg-slate-950/60 p-2.5 rounded-xl">
                         <Clock size={14} className="text-teal-400" />
-                        <span>{ex.durationMinutes || 30} Mins</span>
+                        <span>{ex.durationMinutes || ex.duration || 30} Mins</span>
                       </div>
                       <div className="flex items-center gap-2 bg-slate-950/60 p-2.5 rounded-xl">
                         <FileText size={14} className="text-purple-400" />

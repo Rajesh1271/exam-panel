@@ -28,7 +28,10 @@ export default function StudentExamPage() {
   const [resultId, setResultId] = useState(location.state?.resultId || null);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(1800); // 30 min default
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const initDuration = location.state?.exam?.durationMinutes || location.state?.exam?.duration;
+    return initDuration ? Number(initDuration) * 60 : 1800;
+  });
   const [studentId, setStudentId] = useState(null);
   const [studentName, setStudentName] = useState("Student");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -84,7 +87,8 @@ export default function StudentExamPage() {
         const qList = res.data.questions || [];
         setQuestions(qList);
         setResultId(res.data.resultId);
-        setTimeLeft((res.data.exam?.durationMinutes || res.data.exam?.duration || 30) * 60);
+        const dur = Number(res.data.exam?.durationMinutes || res.data.exam?.duration || 30);
+        setTimeLeft(dur * 60);
         setMaxScore(qList.length);
       }
     } catch (err) {
@@ -96,7 +100,8 @@ export default function StudentExamPage() {
           setExam(directRes.data);
           const qList = directRes.data.questionIds || [];
           setQuestions(qList);
-          setTimeLeft((directRes.data.durationMinutes || directRes.data.duration || 30) * 60);
+          const dur = Number(directRes.data.durationMinutes || directRes.data.duration || 30);
+          setTimeLeft(dur * 60);
           setMaxScore(qList.length);
         }
       } catch (e2) {
@@ -127,19 +132,29 @@ export default function StudentExamPage() {
           const params = resolvedId ? { studentId: resolvedId } : {};
           const res = await axios.get(`http://localhost:3300/api/exams/${examId}/start`, { params });
 
-          if (res?.data?.questions) {
-            const newQList = res.data.questions;
-            setQuestions((prev) => {
-              const prevIds = new Set((prev || []).map((q) => q._id));
-              const newlyAdded = newQList.filter((q) => !prevIds.has(q._id));
-              if (newlyAdded.length > 0) {
-                setSyncNotification(`⚡ ${newlyAdded.length} new question(s) dynamically synchronized to this exam in real-time!`);
+          if (res?.data) {
+            if (res.data.questions) {
+              const newQList = res.data.questions;
+              setQuestions((prev) => {
+                const prevIds = new Set((prev || []).map((q) => q._id));
+                const newlyAdded = newQList.filter((q) => !prevIds.has(q._id));
+                if (newlyAdded.length > 0) {
+                  setSyncNotification(`⚡ ${newlyAdded.length} new question(s) dynamically synchronized to this exam in real-time!`);
+                  setTimeout(() => setSyncNotification(""), 6000);
+                }
+                return newQList;
+              });
+              setMaxScore(newQList.length);
+            }
+            if (res.data.exam) {
+              setExam(res.data.exam);
+              if (type === "examUpdated" && (payload?.durationMinutes || payload?.duration)) {
+                const updatedMins = Number(payload.durationMinutes || payload.duration);
+                setTimeLeft(updatedMins * 60);
+                setSyncNotification(`⏱️ Exam duration has been updated to ${updatedMins} minutes by the instructor!`);
                 setTimeout(() => setSyncNotification(""), 6000);
               }
-              return newQList;
-            });
-            if (res.data.exam) setExam(res.data.exam);
-            setMaxScore(newQList.length);
+            }
           }
         } catch (syncErr) {
           console.warn("Real-time live sync error:", syncErr);
