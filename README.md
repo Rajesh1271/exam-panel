@@ -1,4 +1,4 @@
-# 🎓 Online Examination Panel with MongoDB Real-time Sync
+# 🎓 Online Examination Panel with MongoDB Real-time
 
 A full-stack, dynamic online examination and administration portal built with **React (Vite + Tailwind CSS)** and **Node.js (Express + MongoDB / Mongoose)**.
 
